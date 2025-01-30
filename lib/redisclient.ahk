@@ -1,5 +1,34 @@
 #Requires AutoHotkey v2.0 
 
+REDIS_ERR := -1
+REDIS_OK :=0
+
+/* When an error occurs, the err flag in a context is set to hold the type of
+ * error that occurred. REDIS_ERR_IO means there was an I/O error and you
+ * should use the "errno" variable to find out what is wrong.
+ * For other values, the "errstr" field will hold a description. */
+REDIS_ERR_IO := 1
+REDIS_ERR_EOF := 3
+REDIS_ERR_PROTOCOL := 4
+REDIS_ERR_OOM := 5
+REDIS_ERR_TIMEOUT := 6
+REDIS_ERR_OTHER := 2
+
+REDIS_REPLY_STRING := 1
+REDIS_REPLY_ARRAY := 2
+REDIS_REPLY_INTEGER := 3
+REDIS_REPLY_NIL := 4
+REDIS_REPLY_STATUS := 5
+REDIS_REPLY_ERROR := 6
+REDIS_REPLY_DOUBLE := 7
+REDIS_REPLY_BOOL := 8
+REDIS_REPLY_MAP := 9
+REDIS_REPLY_SET := 10
+REDIS_REPLY_ATTR := 11
+REDIS_REPLY_PUSH := 12
+REDIS_REPLY_BIGNUM := 13
+REDIS_REPLY_VERB := 14
+
 redisStr(str, encoding := "UTF-8")
 {
     buf := Buffer(StrPut(str, encoding))
@@ -51,7 +80,7 @@ class RedisClient
         return buf
     }
 
-    redisConnect()
+    connect()
     {
         ct := DllCall(RedisClient.redisConnect, "ptr", this.StrBuf(this.host), "int", this.port, "ptr")
         ct := RedisContext(ct)
@@ -59,15 +88,12 @@ class RedisClient
         return ct
     }
 
-    redisCommand(formate := "", args := []) 
-    { 
-        args.Push("cdecl ptr")
-        ptr := DllCall(RedisClient.redisCommand, "Ptr", this.ct.ptr, "ptr", this.StrBuf(formate), args*)
-        return RedisReply(ptr)
-    }
+    get(args*) => this.command("GET", args*)
 
-    redisCommandAllstr(command, args := []) 
-    { 
+    set(args*) => this.command("SET", args*)
+
+    command(command, args*)
+    {
         formate := command " "
         for k, v in args
             formate .= "%s "
@@ -80,6 +106,28 @@ class RedisClient
 
         ptr := DllCall(RedisClient.redisCommand, "Ptr", this.ct.ptr, "ptr", this.StrBuf(formate), dllargs*)
         return RedisReply(ptr)
+    }
+
+    appandCommand(command, args*)
+    {
+        formate := command " "
+        for k, v in args
+            formate .= "%s "
+
+        dllargs := []
+        for k, v in args
+            dllargs.Push("ptr"), dllargs.Push(this.StrBuf(v))
+
+        dllargs.Push("int")
+        return DllCall(RedisClient.redisAppendCommand, "Ptr", this.ct.ptr, "ptr", this.StrBuf(formate), dllargs*)
+    }
+
+    getReply(&reply)
+    {
+        bf := Buffer(8)
+        rtn := DllCall(RedisClient.redisGetReply, "Ptr", this.ct.ptr, "ptr", bf, "int")
+        reply := RedisReply(NumGet(bf, 0, 'ptr'))
+        return rtn
     }
 
     static sfreeReplyObject(reply) => DllCall(RedisClient.freeReplyObject, "Ptr", reply)
