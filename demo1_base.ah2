@@ -1,5 +1,4 @@
 #include <redisclient>
-#include <log>
 
 client := RedisClient("127.0.0.1", 6379)
 ct := client.connect()

@@ -1,4 +1,3 @@
-#include <log>
 #include <redisclient>
 client := RedisClient()
 client.connect()
@@ -15,10 +14,10 @@ client.appandCommand("GET", "key1")
 client.appandCommand("GET", "key2")
 client.appandCommand("GET", "key3")
 client.getReply(&reply)
-logger.info(reply.str())
+MsgBox(reply.str())
 
 client.getReply(&reply)
-logger.info(reply.str())
+MsgBox(reply.str())
 
 client.getReply(&reply)
-logger.info(reply.str())
+MsgBox(reply.str())
